@@ -445,4 +445,30 @@ test_expect_success '--geometric -l disables writing bitmaps with non-local pack
 	test_path_is_file member/.git/objects/pack/multi-pack-index-*.bitmap
 '
 
+test_expect_success '--geometric works with promisor packs' '
+	test_when_finished "rm -fr remote local" &&
+
+	git init remote &&
+	test_commit -C remote first file first &&
+	test_commit -C remote second file second &&
+	git -C remote config set uploadpack.allowfilter 1 &&
+	git -C remote config set uploadpack.allowanysha1inwant 1 &&
+	git -C remote repack -Ad &&
+
+	git clone --filter=blob:none file://"$(pwd)"/remote local &&
+	git -C local rev-list --objects --missing=print HEAD >missing-objects &&
+	test_grep "^?" missing-objects &&
+
+	# Assert that promisor packs are left alone and that we still manage to
+	# create new geometric packs.
+	ls local/.git/objects/pack/*.promisor >promisors-before &&
+	ls local/.git/objects/pack/*.pack >packs-before &&
+	test_commit -C local change &&
+	git -C local repack --geometric=2 &&
+	ls local/.git/objects/pack/*.promisor >promisors-after &&
+	ls local/.git/objects/pack/*.pack >packs-after &&
+	! cmp packs-before packs-after &&
+	test_cmp promisors-before promisors-after
+'
+
 test_done

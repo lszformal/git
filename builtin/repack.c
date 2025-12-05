@@ -294,9 +294,10 @@ int cmd_repack(int argc,
 		strvec_push(&cmd.args, "--all");
 		strvec_push(&cmd.args, "--reflog");
 		strvec_push(&cmd.args, "--indexed-objects");
+
+		if (repo_has_promisor_remote(repo))
+			strvec_push(&cmd.args, "--exclude-promisor-objects");
 	}
-	if (repo_has_promisor_remote(repo))
-		strvec_push(&cmd.args, "--exclude-promisor-objects");
 	if (!write_midx) {
 		if (write_bitmaps > 0)
 			strvec_push(&cmd.args, "--write-bitmap-index");
