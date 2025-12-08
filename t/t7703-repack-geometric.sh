@@ -287,6 +287,86 @@ test_expect_success '--geometric with pack.packSizeLimit' '
 	)
 '
 
+test_expect_success '--geometric --write-midx retains up-to-date MIDX without bitmap index' '
+	test_when_finished "rm -fr repo" &&
+	git init repo &&
+	(
+		cd repo &&
+		test_commit initial &&
+
+		test_path_is_missing .git/objects/pack/multi-pack-index &&
+		git repack --geometric=2 --write-midx --no-write-bitmap-index &&
+		test_path_is_file .git/objects/pack/multi-pack-index &&
+		test-tool chmtime =0 .git/objects/pack/multi-pack-index &&
+
+		ls -l .git/objects/pack/ >expect &&
+		git repack --geometric=2 --write-midx --no-write-bitmap-index &&
+		ls -l .git/objects/pack/ >actual &&
+		test_cmp expect actual
+	)
+'
+
+test_expect_success '--geometric --write-midx regenerates MIDX when preferred pack changes' '
+	test_when_finished "rm -fr repo" &&
+	git init repo &&
+	(
+		cd repo &&
+
+		test_commit first &&
+		test_commit second &&
+		test_commit third &&
+		git repack --geometric=2 --write-midx --write-bitmap-index &&
+		test_commit fourth &&
+		git repack --geometric=2 --write-midx --write-bitmap-index &&
+
+		ls .git/objects/pack/*.pack >packs &&
+		test_line_count = 2 packs &&
+		preferred_pack=$(test-tool read-midx --preferred-pack .git/objects) &&
+		other_pack=$(ls .git/objects/pack/*.idx | grep -v "$preferred_pack") &&
+		echo "$preferred_pack" &&
+		echo "$other_pack" &&
+
+		# Rewrite the multi-pack index with the current preferred pack.
+		# git-repack(1) should decide to _not_ repack the MIDX in that
+		# case. This is mostly a sanity check to verify that the reason
+		# for the repack really only is the changed preferred pack.
+		rm -f .git/objects/pack/multi-pack-index* &&
+		git multi-pack-index write --bitmap --preferred-pack="$preferred_pack" &&
+		test-tool chmtime =0 .git/objects/pack/multi-pack-index &&
+		ls -l .git/objects/pack/ >expect &&
+		git repack --geometric=2 --write-midx --write-bitmap-index &&
+		ls -l .git/objects/pack/ >actual &&
+		test_cmp expect actual &&
+
+		# Rewrite the multi-pack index with a different preferred pack.
+		# This time around, git-repack(1) should decide to repack the
+		# MIDX to rectify the preferred pack.
+		rm -f .git/objects/pack/multi-pack-index* &&
+		git multi-pack-index write --bitmap --preferred-pack="$(basename "$other_pack")" &&
+		test-tool chmtime =0 .git/objects/pack/multi-pack-index &&
+		ls -l .git/objects/pack/ >expect &&
+		git repack --geometric=2 --write-midx --write-bitmap-index &&
+		ls -l .git/objects/pack/ >actual &&
+		! test_cmp expect actual
+	)
+'
+
+test_expect_success '--geometric --write-midx retains up-to-date MIDX with bitmap index' '
+	test_when_finished "rm -fr repo" &&
+	git init repo &&
+	test_commit -C repo initial &&
+
+	test_path_is_missing repo/.git/objects/pack/multi-pack-index &&
+	git -C repo repack --geometric=2 --write-midx --write-bitmap-index &&
+	test_path_is_file repo/.git/objects/pack/multi-pack-index &&
+	test-tool chmtime =0 repo/.git/objects/pack/multi-pack-index &&
+
+	ls -l repo/.git/objects/pack/ >expect &&
+	git -C repo repack --geometric=2 --write-midx --write-bitmap-index &&
+	ls -l repo/.git/objects/pack/ >actual &&
+	test_cmp expect actual
+'
+
 test_expect_success '--geometric --write-midx with packfiles in main and alternate ODB' '
 	test_when_finished "rm -fr shared member" &&
 

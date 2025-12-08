@@ -350,8 +350,63 @@ test_expect_success 'preferred pack from existing MIDX without bitmaps' '
 		# the new MIDX
 		git multi-pack-index write --preferred-pack=pack-$pack.pack
 	)
-
 '
+
+test_expect_success 'preferred pack cannot be determined without bitmap' '
+	test_when_finished "rm -fr preferred-can-be-queried" &&
+	git init preferred-can-be-queried &&
+	(
+		cd preferred-can-be-queried &&
+		test_commit initial &&
+		git repack -Adl --write-midx --no-write-bitmap-index &&
+		test_must_fail test-tool read-midx --preferred-pack .git/objects 2>err &&
+		test_grep "could not determine MIDX preferred pack" err &&
+		git repack -Adl --write-midx --write-bitmap-index &&
+		test-tool read-midx --preferred-pack .git/objects
+	)
+'
+
+test_midx_is_retained () {
+	test-tool chmtime =0 .git/objects/pack/multi-pack-index &&
+	ls -l .git/objects/pack/multi-pack-index >expect &&
+	git repack "$@" &&
+	ls -l .git/objects/pack/multi-pack-index >actual &&
+	test_cmp expect actual
+}
+
+test_midx_is_rewritten () {
+	test-tool chmtime =0 .git/objects/pack/multi-pack-index &&
+	ls -l .git/objects/pack/multi-pack-index >expect &&
+	git repack --write-midx "$@" &&
+	ls -l .git/objects/pack/multi-pack-index >actual &&
+	! test_cmp expect actual
+}
+
+test_expect_success 'up-to-date multi-pack-index is retained' '
+	test_when_finished "rm -fr midx-up-to-date" &&
+	git init midx-up-to-date &&
+	(
+		cd midx-up-to-date &&
+
+		# Write the initial pack that contains the most objects. This
+		# will be the preferred pack.
+		test_commit first &&
+		test_commit second &&
+		git repack -Ad --write-midx &&
+		test_midx_is_retained -Ad &&
+
+		# Writing a new bitmap index should cause us to regenerate the MIDX.
+		test_midx_is_rewritten -Ad --write-bitmap-index &&
+		test_midx_is_retained -Ad --write-bitmap-index &&
+
+		# Ensure that writing a new packfile causes us to rewrite the index.
+		test_commit incremental &&
+		test_midx_is_rewritten -d &&
+		test_midx_is_retained -d
+	)
+'
+
+test_done
 
 test_expect_success 'verify multi-pack-index success' '
 	git multi-pack-index verify --object-dir=$objdir

@@ -2,6 +2,7 @@
 #include "repack.h"
 #include "hash.h"
 #include "hex.h"
+#include "midx.h"
 #include "odb.h"
 #include "oidset.h"
 #include "pack-bitmap.h"
@@ -283,6 +284,92 @@ static void remove_redundant_bitmaps(struct string_list *include,
 	strbuf_release(&path);
 }
 
+static bool midx_needs_update(struct repack_write_midx_opts *opts,
+			      struct string_list *include,
+			      struct packed_git *new_preferred)
+{
+	struct multi_pack_index *midx;
+	uint32_t preferred_pack_id;
+	bool needed = true;
+
+	/*
+	 * If there is no multi-pack index we obviously need to generate a new
+	 * one.  Note that we cannot use `get_multi_pack_index()` here, as we
+	 * might be operating with a closed object database.
+	 */
+	midx = load_multi_pack_index(opts->existing->repo->objects->sources);
+	if (!midx)
+		goto out;
+
+	/*
+	 * If we're instructed to write a bitmap we need to verify whether we
+	 * already got one.
+	 */
+	if (opts->write_bitmaps) {
+		struct bitmap_index *bitmap = prepare_midx_bitmap_git(midx);
+		bool bitmap_exists = bitmap && bitmap_is_midx(bitmap);
+		free_bitmap_index(bitmap);
+		if (!bitmap_exists)
+			goto out;
+	}
+
+	/*
+	 * If we're asked to generate the MIDX with a preferred pack we need to
+	 * verify that the current prepared pack matches the desired one. We
+	 * can only determine this in the case where we write bitmaps though,
+	 * so we ignore this setting otherwise.
+	 */
+	if (new_preferred && opts->write_bitmaps) {
+		struct packed_git *old_preferred = NULL;
+
+		if (!midx_preferred_pack(midx, &preferred_pack_id))
+			old_preferred = nth_midxed_pack(midx, preferred_pack_id);
+
+		if (!old_preferred)
+			goto out;
+
+		if (strcmp(pack_basename(new_preferred),
+			   pack_basename(old_preferred)))
+			goto out;
+	 }
+
+	/*
+	 * Otherwise, we need to verify that the packs that are about to be
+	 * included in the MIDX matches the currently covered packs.
+	 */
+	if (include->nr != opts->existing->midx_packs.nr)
+		goto out;
+
+	string_list_sort(include);
+	string_list_sort(&opts->existing->midx_packs);
+	for (size_t i = 0; i < include->nr; i++) {
+		const char *include_name = include->items[i].string;
+		const char *existing_name = opts->existing->midx_packs.items[i].string;
+		size_t include_len = strlen(include_name);
+		size_t existing_len = strlen(existing_name);
+
+		/*
+		 * We track pack indices for the include list, but the
+		 * packfiles themselves in the existing list. We thus need to
+		 * strip these suffixes.
+		 */
+		if (ends_with(include_name, ".idx"))
+			include_len -= strlen(".idx");
+		if (ends_with(existing_name, ".pack"))
+			existing_len -= strlen(".pack");
+		if (include_len != existing_len)
+			goto out;
+		if (memcmp(include_name, existing_name, include_len))
+			goto out;
+	}
+
+	needed = false;
+
+out:
+	close_midx(midx);
+	return needed;
+}
+
 int write_midx_included_packs(struct repack_write_midx_opts *opts)
 {
 	struct child_process cmd = CHILD_PROCESS_INIT;
@@ -294,6 +381,9 @@ int write_midx_included_packs(struct repack_write_midx_opts *opts)
 
 	midx_included_packs(&include, opts);
 	if (!include.nr)
+		goto done;
+
+	if (!midx_needs_update(opts, &include, preferred))
 		goto done;
 
 	cmd.in = -1;
