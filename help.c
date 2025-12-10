@@ -769,15 +769,19 @@ char *help_unknown_cmd(const char *cmd)
 	exit(1);
 }
 
-void get_version_info(struct strbuf *buf, int show_build_options)
+void get_version_info(struct strbuf *buf, int short_version,
+                     int show_build_options)
 {
 	/*
 	 * The format of this string should be kept stable for compatibility
 	 * with external projects that rely on the output of "git version".
 	 *
-	 * Always show the version, even if other options are given.
-	 */
-	strbuf_addf(buf, "git version %s\n", git_version_string);
+         * Always show the version, even if other options are given.
+         */
+        if (short_version)
+                strbuf_addf(buf, "%s\n", git_version_string);
+        else
+                strbuf_addf(buf, "git version %s\n", git_version_string);
 
 	if (show_build_options) {
 		strbuf_addf(buf, "cpu: %s\n", GIT_HOST_CPU);

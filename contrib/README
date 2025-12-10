@@ -40,4 +40,7 @@ repositories in a way git-svn works better than git-svnimport),
 submit a patch to create a subdirectory of contrib/ and put your
 stuff there.
 
+- list-large-objects/ contains a small Python helper that reports blobs larger
+  than a configurable threshold to help clean up over-sized history.
+
 -jc

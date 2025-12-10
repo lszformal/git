@@ -980,7 +980,7 @@ static int cmd_version(int argc, const char **argv)
 	if (argc != 0)
 		usage_with_options(usage, options);
 
-	get_version_info(&buf, build_options);
+	get_version_info(&buf, 0, build_options);
 	fprintf(stderr, "%s\n", buf.buf);
 	strbuf_release(&buf);
 
