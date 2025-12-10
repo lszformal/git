@@ -1,0 +1,17 @@
+list-large-objects
+------------------
+
+`git-list-large-blobs.py` reports blobs larger than a configurable threshold in
+the current repository. It is helpful when cleaning up history after
+accidentally committing large assets.
+
+Usage examples::
+
+    # List blobs larger than the default 5MiB
+    ./git-list-large-blobs.py
+
+    # List blobs at or above 1GiB
+    ./git-list-large-blobs.py --min-size 1GiB
+
+The script uses `git rev-list --objects --all` and `git cat-file --batch-check`
+to discover blob sizes, so it does not require additional Python dependencies.
