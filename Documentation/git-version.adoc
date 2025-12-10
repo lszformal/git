@@ -32,7 +32,7 @@ for only non-cryptographic purposes, the algorithm is displayed in the form
 `non-collision-detecting-SHA-1: <option>`.
 
 --short::
-        Print just the version string without the `git version` prefix.
+Print only the version string without the `git version` prefix.
 
 GIT
 ---
