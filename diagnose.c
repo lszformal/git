@@ -217,7 +217,7 @@ int create_diagnostics_archive(struct repository *r,
 
 	strbuf_reset(&buf);
 	strbuf_addstr(&buf, "Collecting diagnostic info\n\n");
-	get_version_info(&buf, 1);
+	get_version_info(&buf, 0, 1);
 
 	strbuf_addf(&buf, "Repository root: %s\n", r->worktree);
 	get_disk_info(&buf);

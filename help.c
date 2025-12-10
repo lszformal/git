@@ -769,15 +769,19 @@ char *help_unknown_cmd(const char *cmd)
 	exit(1);
 }
 
-void get_version_info(struct strbuf *buf, int show_build_options)
+void get_version_info(struct strbuf *buf, int short_version,
+                     int show_build_options)
 {
 	/*
 	 * The format of this string should be kept stable for compatibility
 	 * with external projects that rely on the output of "git version".
 	 *
-	 * Always show the version, even if other options are given.
-	 */
-	strbuf_addf(buf, "git version %s\n", git_version_string);
+         * Always show the version, even if other options are given.
+         */
+        if (short_version)
+                strbuf_addf(buf, "%s\n", git_version_string);
+        else
+                strbuf_addf(buf, "git version %s\n", git_version_string);
 
 	if (show_build_options) {
 		strbuf_addf(buf, "cpu: %s\n", GIT_HOST_CPU);
@@ -825,20 +829,22 @@ void get_version_info(struct strbuf *buf, int show_build_options)
 int cmd_version(int argc, const char **argv, const char *prefix, struct repository *repository UNUSED)
 {
 	struct strbuf buf = STRBUF_INIT;
-	int build_options = 0;
+	int build_options = 0, short_version = 0;
 	const char * const usage[] = {
-		N_("git version [--build-options]"),
+		N_("git version [--build-options] [--short]"),
 		NULL
 	};
 	struct option options[] = {
 		OPT_BOOL(0, "build-options", &build_options,
 			 "also print build options"),
-		OPT_END()
+		OPT_BOOL(0, "short", &short_version,
+			 "print just the version number"),
+		OPT_END(),
 	};
 
 	argc = parse_options(argc, argv, prefix, options, usage, 0);
 
-	get_version_info(&buf, build_options);
+	get_version_info(&buf, short_version, build_options);
 	printf("%s", buf.buf);
 
 	strbuf_release(&buf);

@@ -20,7 +20,7 @@ static void get_system_info(struct strbuf *sys_info)
 
 	/* get git version from native cmd */
 	strbuf_addstr(sys_info, _("git version:\n"));
-	get_version_info(sys_info, 1);
+	get_version_info(sys_info, 0, 1);
 
 	/* system call for other version info */
 	strbuf_addstr(sys_info, "uname: ");
