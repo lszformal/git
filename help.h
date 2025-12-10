@@ -42,7 +42,8 @@ void add_cmdname(struct cmdnames *cmds, const char *name, int len);
 void exclude_cmds(struct cmdnames *cmds, struct cmdnames *excludes);
 int is_in_cmdlist(struct cmdnames *cmds, const char *name);
 void list_commands(struct cmdnames *main_cmds, struct cmdnames *other_cmds);
-void get_version_info(struct strbuf *buf, int show_build_options);
+void get_version_info(struct strbuf *buf, int short_version,
+                     int show_build_options);
 
 /*
  * call this to die(), when it is suspected that the user mistyped a
