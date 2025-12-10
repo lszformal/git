@@ -48,25 +48,18 @@ def fill_sizes(blobs: List[BlobInfo]) -> None:
     if not blobs:
         return
 
-    proc = subprocess.Popen(
+    requests = "\n".join(blob.oid for blob in blobs) + "\n"
+
+    result = subprocess.run(
         ["git", "cat-file", "--batch-check"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
+        input=requests,
+        capture_output=True,
         text=True,
+        check=True,
     )
 
-    assert proc.stdin is not None
-    assert proc.stdout is not None
-
-    for blob in blobs:
-        proc.stdin.write(f"{blob.oid}\n")
-    proc.stdin.close()
-
-    for blob in blobs:
-        info = proc.stdout.readline()
-        if not info:
-            break
-        parts = info.strip().split()
+    for blob, line in zip(blobs, result.stdout.splitlines()):
+        parts = line.strip().split()
         if len(parts) < 3:
             continue
         _oid, obj_type, obj_size = parts[:3]
@@ -74,8 +67,6 @@ def fill_sizes(blobs: List[BlobInfo]) -> None:
             blob.size = 0
             continue
         blob.size = int(obj_size)
-
-    proc.wait()
 
 
 def human_size(size: int) -> str:
