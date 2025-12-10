@@ -826,17 +826,28 @@ int cmd_version(int argc, const char **argv, const char *prefix, struct reposito
 {
 	struct strbuf buf = STRBUF_INIT;
 	int build_options = 0;
+	int short_version = 0;
 	const char * const usage[] = {
-		N_("git version [--build-options]"),
+		N_("git version [--build-options] [--short]"),
 		NULL
 	};
 	struct option options[] = {
 		OPT_BOOL(0, "build-options", &build_options,
 			 "also print build options"),
-		OPT_END()
+		OPT_BOOL('s', "short", &short_version,
+			 N_("print just the version number")),
+		OPT_END(),
 	};
 
 	argc = parse_options(argc, argv, prefix, options, usage, 0);
+
+	if (build_options && short_version)
+		die(_("option `--short` cannot be combined with `--build-options`"));
+
+	if (short_version) {
+		puts(git_version_string);
+		return 0;
+	}
 
 	get_version_info(&buf, build_options);
 	printf("%s", buf.buf);

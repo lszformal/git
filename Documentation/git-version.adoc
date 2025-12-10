@@ -8,7 +8,7 @@ git-version - Display version information about Git
 SYNOPSIS
 --------
 [verse]
-'git version' [--build-options]
+'git version' [--build-options] [--short]
 
 DESCRIPTION
 -----------
@@ -30,6 +30,9 @@ detection algorithm and thus may be vulnerable to known SHA-1 collision
 attacks. When a faster SHA-1 implementation without collision detection is used
 for only non-cryptographic purposes, the algorithm is displayed in the form
 `non-collision-detecting-SHA-1: <option>`.
+
+--short::
+Print only the version string without the `git version` prefix.
 
 GIT
 ---
